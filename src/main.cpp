@@ -28,33 +28,33 @@ void setup()
   console.begin(SSD1306_SWITCHCAPVCC);
   console.display();
 
-  printf("Initialisation\n");
+  printf("initialisation\n");
 
   window.close();
   if (window.state == Window::UNKNOWN) {
     while(1);
   }
 
-  printf("uC ready.\n\n");
+  printf("system ready.\n\n");
 }
 
 void loop()
 {
   uint32_t now = millis();
 
-  float mA = current.mA();
-  static float mi = 1024, ma = 0;
-  mi = min(mi, mA);
-  ma = max(ma, mA);
-  printf("\r%4i %4i %4i\a", int(mA), int(mi), int(ma));
-
   static uint32_t last_run1 = now;
-  if (now - last_run1 > 1000) {
+  if (now - last_run1 > 500) {
+    last_run1 = now;
+
     static uint8_t done = 0;
     if (!done) {
       printf("\r");
       window.open();
       done = 1;
     }
+
+    static uint8_t on = 0;
+    printf("\r%c\a", on ? '_' : ' ');
+    on = !on;
   }
 }

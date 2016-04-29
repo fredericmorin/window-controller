@@ -6,12 +6,12 @@
 #include "Motor.hpp"
 #include "CurrentReader.hpp"
 
-static const int MAX_INITIAL_CURRENT = 200;
-static const int CLOSING_CURRENT_THRESHOLD = 1000;
-static const int CLOSING_TIMEOUT_IN_MS = 10000;
-static const int OPENING_CURRENT_PROTECTION = 600;
-static const int OPENING_DURATION_IN_MS = 4000;
-static const float RAMP_UP_TIME_IN_MS = 800.f;
+static const  int32_t MAX_INITIAL_CURRENT        = 200;
+static const  int32_t CLOSING_CURRENT_THRESHOLD  = 1000;
+static const uint32_t CLOSING_TIMEOUT_IN_MS      = 10000;
+static const  int32_t OPENING_CURRENT_PROTECTION = 600;
+static const uint32_t OPENING_DURATION_IN_MS     = 4000;
+static const    float RAMP_UP_TIME_IN_MS         = 800;
 
 class Window {
   Motor* motor;
@@ -30,32 +30,31 @@ public:
   uint8_t check() {
     this->motor->stop();
     delay(MAX_INITIAL_CURRENT);
-    float current_max_mA = 0;
     for (size_t i = 0; i < 50; i++) {
-      current_max_mA = max(current_max_mA, this->current->mA());
+      int32_t current = this->current->mA();
       delay(1);
-      if (current_max_mA > MAX_INITIAL_CURRENT) {
-        printf("\nERROR !\n");
-        printf("Initial current is over limit: %i\n", int(current_max_mA));
+      if (current > MAX_INITIAL_CURRENT) {
+        printf("\nERROR: over limit\n");
+        printf("  initial current is over limit: %lu\n", current);
         return 1;
       }
     }
     return 0;
   }
 
+
   void open() {
     if (check() != 0)
       return;
 
-    printf("Opening window...\n");
+    printf("opening window...\n");
 
-    uint32_t start = millis(), duration = 0;
-    float current = this->current->mA();
+    uint32_t start = millis();
     while(1) {
-      current = this->current->mA();
-      duration = millis() - start;
+      int32_t current = this->current->mA();
+      uint32_t duration = millis() - start;
 
-      printf("\r%4ld current:%4d\a", duration, int(current));
+      printf("\r%4lu current:%4ld\a", duration, current);
 
       if (  // are we done yet ?
         current > OPENING_CURRENT_PROTECTION ||
@@ -79,22 +78,21 @@ public:
     if (check() != 0)
       return;
 
-    printf("Closing window...\n");
+    printf("closing window...\n");
 
-    uint32_t start = millis(), elapsed = 0;
-    float current = this->current->mA();
+    uint32_t start = millis();
     while(1) {
-      current = this->current->mA();
-      elapsed = millis() - start;
+      int32_t current = this->current->mA();
+      uint32_t elapsed = millis() - start;
 
-      printf("\r%4ld current:%4d\a", elapsed, int(current));
+      printf("\r%4lu current:%4ld\a", elapsed, current);
 
       if (current > CLOSING_CURRENT_THRESHOLD) {
         this->state = Window::CLOSED;
         break;
       }
       if (elapsed > CLOSING_TIMEOUT_IN_MS) {
-        printf("\r\nError: Timeout\n");
+        printf("\r\nERROR: Timeout\n");
         this->motor->stop();
         return;
       }

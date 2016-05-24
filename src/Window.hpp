@@ -7,11 +7,14 @@
 #include "CurrentReader.hpp"
 
 static const  int32_t MAX_INITIAL_CURRENT        = 200;
-static const  int32_t CLOSING_CURRENT_THRESHOLD  = 1000;
+static const  int32_t CLOSING_CURRENT_THRESHOLD  = 2000;
 static const uint32_t CLOSING_TIMEOUT_IN_MS      = 10000;
-static const  int32_t OPENING_CURRENT_PROTECTION = 600;
+static const  int32_t OPENING_CURRENT_PROTECTION = 1200;
 static const uint32_t OPENING_DURATION_IN_MS     = 4000;
 static const    float RAMP_UP_TIME_IN_MS         = 800;
+
+#include <Adafruit_BLE_UART.h>
+extern Adafruit_BLE_UART nrf;
 
 class Window {
   Motor* motor;
@@ -42,7 +45,6 @@ public:
     return 0;
   }
 
-
   void open() {
     if (check() != 0)
       return;
@@ -50,11 +52,20 @@ public:
     printf("opening window...\n");
 
     uint32_t start = millis();
+    int32_t current;
+    uint32_t duration;
     while(1) {
-      int32_t current = this->current->mA();
-      uint32_t duration = millis() - start;
+      uint32_t now = millis();
+      duration = now - start;
+      current = this->current->mA();
 
-      printf("\r%4lu current:%4ld\a", duration, current);
+      nrf.pollACI();
+
+      static uint32_t last_run = now - 100;
+      if (now - last_run >= 100) {
+        last_run = now;
+        printf("%4lums %4ldma\n", duration, current);
+      }
 
       if (  // are we done yet ?
         current > OPENING_CURRENT_PROTECTION ||
@@ -68,11 +79,12 @@ public:
       float progress = duration / RAMP_UP_TIME_IN_MS;
       this->motor->open(constrain(progress * 255, 0, 255));
     }
+    printf("%4lums %4ldma\n", duration, current);
 
-    printf("\rdone.\n");
     this->motor->stop();
-    delay(100);
-}
+    delay(50);
+    printf("done.\n");
+  }
 
   void close() {
     if (check() != 0)
@@ -81,11 +93,20 @@ public:
     printf("closing window...\n");
 
     uint32_t start = millis();
+    int32_t current;
+    uint32_t elapsed;
     while(1) {
-      int32_t current = this->current->mA();
-      uint32_t elapsed = millis() - start;
+      uint32_t now = millis();
+      elapsed = now - start;
+      current = this->current->mA();
 
-      printf("\r%4lu current:%4ld\a", elapsed, current);
+      nrf.pollACI();
+
+      static uint32_t last_run = now - 100;
+      if (now - last_run >= 100) {
+        last_run = now;
+        printf("%4lums %4ldma\n", elapsed, current);
+      }
 
       if (current > CLOSING_CURRENT_THRESHOLD) {
         this->state = Window::CLOSED;
@@ -101,10 +122,11 @@ public:
       float progress = elapsed / RAMP_UP_TIME_IN_MS;
       this->motor->close(constrain(progress * 255, 0, 255));
     }
+    printf("%4lums %4ldma\n", elapsed, current);
 
-    printf("\rdone.\n");
     this->motor->stop();
-    delay(100);
+    delay(50);
+    printf("done.\n");
   }
 
 };
